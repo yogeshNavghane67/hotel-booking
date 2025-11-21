@@ -1,4 +1,7 @@
-import Hotel from "../models/Hotel";
+import Hotel from "../models/Hotel.js";
+import { v2 as cloudinary} from "cloudinary"
+import Room from "../models/Room.js";
+import { messageInRaw } from "svix";
 
 // Api to create a new room for a hotel
 export const createRoom = async (req,res)=>{
@@ -7,8 +10,26 @@ export const createRoom = async (req,res)=>{
         const hotel = await Hotel.findOne({owner: req.auth.userId})
 
         if(!hotel) return res.json({ success: false, message: "No Hotel found"})
+
+        // upload images to cloudinary 
+        const uploadImages = req.files.map(async (file) => {
+            const response = await cloudinary.uploader.upload(file.path);
+            return response.secure_url;
+        })
+
+        // wait for all upload to complete
+        const images = await Promise.all(uploadImages)
+
+        await Room.create({
+            hotel: hotel._id,
+            roomType,
+            pricePerNight: +pricePerNight,
+            amenities: JSON.parse(amenities),
+            images,
+        })
+        res.json({success: true, message: "Room Create Successfully" })
     } catch (error) {
-        
+        res.json({ success: false, message: error.message })
     }
 }
 
